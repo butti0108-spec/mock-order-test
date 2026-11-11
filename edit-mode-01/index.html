@@ -112,8 +112,10 @@
     <input type="text" id="pickerUrl" placeholder="または画像URLを貼る">
     <div class="row">
       <button type="button" id="pickerApply">このURLを使う</button>
+      <button type="button" id="pickerFile">ファイルから選ぶ</button>
       <button type="button" id="pickerCancel">やめる</button>
     </div>
+    <input type="file" id="pickerFileInput" accept="image/*" style="display:none;">
   </div>
 </div>
 
@@ -139,6 +141,7 @@ function setImageControls() {
   const set = (selId, urlId, val) => {
     const sel = document.getElementById(selId), url = document.getElementById(urlId);
     if (PRESET_IMAGES[val]) { sel.value = val; url.value = ''; }
+    else if (val && val.startsWith('data:')) { sel.value = 'url'; url.value = ''; url.placeholder = 'ファイルから選択した画像（変更する時は選び直し）'; }
     else { sel.value = 'url'; url.value = val || ''; }
   };
   set('selHero', 'urlHero', content.images.hero);
@@ -148,7 +151,8 @@ function setImageControls() {
 }
 function readImage(selId, urlId) {
   const sel = document.getElementById(selId);
-  return sel.value === 'url' ? document.getElementById(urlId).value.trim() : sel.value;
+  if (sel.value === 'url') return document.getElementById(urlId).value.trim() || null;
+  return sel.value;
 }
 function refreshImages() {
   document.getElementById('imgHero').src = imageSrc(readImage('selHero', 'urlHero'));
@@ -206,6 +210,19 @@ document.getElementById('pickerApply').addEventListener('click', () => {
 document.getElementById('pickerCancel').addEventListener('click', () => {
   document.getElementById('imgPicker').classList.remove('open');
 });
+document.getElementById('pickerFile').addEventListener('click', () => {
+  document.getElementById('pickerFileInput').click();
+});
+document.getElementById('pickerFileInput').addEventListener('change', async (ev) => {
+  const f = ev.target.files[0];
+  if (!f || !pickerTarget) return;
+  const uri = await fileToDataUri(f);
+  content.images[pickerTarget] = uri;
+  document.getElementById(pickerTarget === 'hero' ? 'imgHero' : 'imgAbout').src = uri;
+  setImageControls();
+  document.getElementById('imgPicker').classList.remove('open');
+  ev.target.value = '';
+});
 ['selHero', 'selAbout', 'urlHero', 'urlAbout'].forEach(id =>
   document.getElementById(id).addEventListener('change', refreshImages));
 ['colorMain', 'colorAccent'].forEach(id =>
@@ -235,8 +252,8 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   });
   content.colors.main = document.getElementById('colorMain').value;
   content.colors.accent = document.getElementById('colorAccent').value;
-  content.images.hero = readImage('selHero', 'urlHero');
-  content.images.about = readImage('selAbout', 'urlAbout');
+  const nh = readImage('selHero', 'urlHero'); if (nh) content.images.hero = nh;
+  const na = readImage('selAbout', 'urlAbout'); if (na) content.images.about = na;
   const st = document.getElementById('editStatus');
   st.textContent = '保存しています…';
   try {

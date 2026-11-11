@@ -51,11 +51,13 @@
     <div class="row">
       <select id="selHero"><option value="preset1">ダミー1</option><option value="preset2">ダミー2</option><option value="preset3">ダミー3</option><option value="url">URL指定</option></select>
       <input type="text" id="urlHero" placeholder="画像URL（URL指定の時）" style="flex:1;">
+      <input type="file" id="fileHero" accept="image/*">
     </div>
     <label>下の画像</label>
     <div class="row">
       <select id="selAbout"><option value="preset1">ダミー1</option><option value="preset2">ダミー2</option><option value="preset3">ダミー3</option><option value="url">URL指定</option></select>
       <input type="text" id="urlAbout" placeholder="画像URL（URL指定の時）" style="flex:1;">
+      <input type="file" id="fileAbout" accept="image/*">
     </div>
   </div>
 </main>
@@ -97,8 +99,18 @@ function fillForm() {
 }
 function readImage(selId, urlId) {
   const sel = document.getElementById(selId);
-  return sel.value === 'url' ? document.getElementById(urlId).value.trim() : sel.value;
+  if (sel.value === 'url') return document.getElementById(urlId).value.trim() || null;
+  return sel.value;
 }
+[['fileHero', 'hero'], ['fileAbout', 'about']].forEach(([fid, key]) => {
+  document.getElementById(fid).addEventListener('change', async (ev) => {
+    const f = ev.target.files[0];
+    if (!f || !content) return;
+    content.images[key] = await fileToDataUri(f);
+    status.textContent = '画像を読み込みました（保存ボタンで確定します）';
+    ev.target.value = '';
+  });
+});
 function collectForm() {
   if (!content.align) content.align = {};
   Object.keys(DEFAULT_CONTENT.texts).forEach(key => {
@@ -108,8 +120,8 @@ function collectForm() {
   });
   content.colors.main = document.getElementById('colorMain').value;
   content.colors.accent = document.getElementById('colorAccent').value;
-  content.images.hero = readImage('selHero', 'urlHero');
-  content.images.about = readImage('selAbout', 'urlAbout');
+  const nh = readImage('selHero', 'urlHero'); if (nh) content.images.hero = nh;
+  const na = readImage('selAbout', 'urlAbout'); if (na) content.images.about = na;
 }
 
 document.getElementById('loadBtn').addEventListener('click', async () => {

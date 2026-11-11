@@ -66,6 +66,25 @@ function mergeDefaults(c) {
   return out;
 }
 
+/* ファイルを選ぶと、最大1200pxに縮小してJPEGのdata URIにする（保存先の容量節約） */
+function fileToDataUri(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, 1200 / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(cv.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 async function loadContent() {
   if (GAS_URL) {
     try {
