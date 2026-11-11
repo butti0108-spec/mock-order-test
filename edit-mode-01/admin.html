@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理画面（実験）｜編集モードの実験</title>
+<style>
+  body { margin:0; font-family:sans-serif; color:#2b2b2b; background:#f4f1ec; line-height:1.6; }
+  .exp-band { background:#c0392b; color:#fff; text-align:center; font-weight:700; padding:8px 12px; font-size:14px; }
+  main { max-width:760px; margin:0 auto; padding:20px; }
+  h1 { font-size:22px; }
+  .card { background:#fff; border:1px solid #e0d8cd; border-radius:12px; padding:16px; margin-bottom:16px; }
+  label { display:block; font-size:13px; font-weight:700; margin:10px 0 4px; }
+  input[type="text"], textarea { width:100%; padding:8px; border:1px solid #bbb; border-radius:8px; font-size:15px; }
+  textarea { min-height:64px; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+  button { background:#31594f; color:#fff; border:0; border-radius:8px; padding:10px 18px; cursor:pointer; font-size:15px; }
+  #status { font-size:14px; margin-top:10px; }
+  a { color:#31594f; }
+</style>
+</head>
+<body>
+<div class="exp-band">これは実験用の管理画面です。実在のお店のものではありません</div>
+<main>
+  <h1>管理画面（実験）</h1>
+  <p>ページに出る文字・色・画像をここで直して保存できます。実験ページと同じ保存先（GAS接続時はシート、未接続の間はこのブラウザ）を使います。</p>
+  <p><a href="index.html">実験ページを開く</a></p>
+
+  <div class="card">
+    <label for="passcode">合言葉（実験用：jikken）</label>
+    <input type="text" id="passcode" value="jikken">
+    <div class="row" style="margin-top:12px;">
+      <button type="button" id="loadBtn">現在の内容を読み込む</button>
+      <button type="button" id="saveBtn">保存する</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:18px; margin-top:0;">文字</h2>
+    <div id="textFields"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:18px; margin-top:0;">色と画像</h2>
+    <div class="row">
+      <label>メイン色 <input type="color" id="colorMain"></label>
+      <label>アクセント色 <input type="color" id="colorAccent"></label>
+    </div>
+    <label>ヒーロー画像</label>
+    <div class="row">
+      <select id="selHero"><option value="preset1">ダミー1</option><option value="preset2">ダミー2</option><option value="preset3">ダミー3</option><option value="url">URL指定</option></select>
+      <input type="text" id="urlHero" placeholder="画像URL（URL指定の時）" style="flex:1;">
+    </div>
+    <label>下の画像</label>
+    <div class="row">
+      <select id="selAbout"><option value="preset1">ダミー1</option><option value="preset2">ダミー2</option><option value="preset3">ダミー3</option><option value="url">URL指定</option></select>
+      <input type="text" id="urlAbout" placeholder="画像URL（URL指定の時）" style="flex:1;">
+    </div>
+  </div>
+</main>
+
+<script src="content.js"></script>
+<script>
+let content = null;
+const status = document.getElementById('status');
+
+function buildTextFields() {
+  const wrap = document.getElementById('textFields');
+  wrap.innerHTML = '';
+  Object.keys(DEFAULT_CONTENT.texts).forEach(key => {
+    const lab = document.createElement('label');
+    lab.textContent = TEXT_LABELS[key] || key;
+    const ta = document.createElement('textarea');
+    ta.id = 'tf-' + key;
+    ta.value = content.texts[key] || '';
+    lab.appendChild(ta);
+    wrap.appendChild(lab);
+  });
+}
+function fillForm() {
+  buildTextFields();
+  document.getElementById('colorMain').value = content.colors.main;
+  document.getElementById('colorAccent').value = content.colors.accent;
+  const set = (selId, urlId, val) => {
+    const sel = document.getElementById(selId), url = document.getElementById(urlId);
+    if (PRESET_IMAGES[val]) { sel.value = val; url.value = ''; }
+    else { sel.value = 'url'; url.value = val || ''; }
+  };
+  set('selHero', 'urlHero', content.images.hero);
+  set('selAbout', 'urlAbout', content.images.about);
+}
+function readImage(selId, urlId) {
+  const sel = document.getElementById(selId);
+  return sel.value === 'url' ? document.getElementById(urlId).value.trim() : sel.value;
+}
+function collectForm() {
+  Object.keys(DEFAULT_CONTENT.texts).forEach(key => {
+    content.texts[key] = document.getElementById('tf-' + key).value.trim();
+  });
+  content.colors.main = document.getElementById('colorMain').value;
+  content.colors.accent = document.getElementById('colorAccent').value;
+  content.images.hero = readImage('selHero', 'urlHero');
+  content.images.about = readImage('selAbout', 'urlAbout');
+}
+
+document.getElementById('loadBtn').addEventListener('click', async () => {
+  status.textContent = '読み込んでいます…';
+  content = await loadContent();
+  fillForm();
+  status.textContent = '読み込みました';
+});
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  if (!content) { status.textContent = '先に読み込んでください'; return; }
+  if (document.getElementById('passcode').value !== EXPERIMENT_PASSCODE) {
+    status.textContent = '合言葉が違います'; return;
+  }
+  collectForm();
+  status.textContent = '保存しています…';
+  try {
+    const where = await saveContent(content, document.getElementById('passcode').value);
+    status.textContent = where === 'gas' ? '保存しました（シートに保存）' : '保存しました（このブラウザに保存：GAS未接続の実験状態）';
+  } catch (e) {
+    status.textContent = '保存に失敗しました：' + e.message;
+  }
+});
+
+(async () => { content = await loadContent(); fillForm(); })();
+</script>
+</body>
+</html>

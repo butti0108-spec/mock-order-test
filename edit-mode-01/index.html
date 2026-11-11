@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>実験ページ｜編集モードの実験</title>
+<style>
+  :root { --main:#a44a2a; --accent:#31594f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: sans-serif; color:#2b2b2b; background:#faf6f1; line-height:1.7; }
+  .exp-band { background:#c0392b; color:#fff; text-align:center; font-weight:700; padding:8px 12px; font-size:14px; }
+  header.site { background:var(--main); color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header.site .name { font-size:20px; font-weight:700; }
+  header.site .dummy { font-size:12px; background:#fff; color:#c0392b; border-radius:999px; padding:2px 10px; font-weight:700; }
+  .hero { padding:28px 20px; text-align:center; }
+  .hero img { width:100%; max-width:720px; border-radius:16px; display:block; margin:0 auto 18px; }
+  .hero h1 { color:var(--main); margin:0 0 8px; font-size:30px; }
+  .hero p { margin:0; }
+  section { max-width:760px; margin:0 auto; padding:20px; }
+  h2 { color:var(--accent); border-left:6px solid var(--accent); padding-left:10px; font-size:22px; }
+  .menu-item { display:flex; justify-content:space-between; background:#fff; border:1px solid #e5ddd3; border-radius:10px; padding:10px 14px; margin-bottom:8px; }
+  .about img { width:100%; border-radius:16px; display:block; margin-bottom:14px; }
+  footer { background:var(--accent); color:#fff; text-align:center; padding:16px; margin-top:24px; }
+  #editBar { position:fixed; left:0; right:0; bottom:0; background:#222; color:#fff; padding:10px 12px; display:none; z-index:50; }
+  #editBar.open { display:block; }
+  #editBar .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; max-width:900px; margin:0 auto 8px; }
+  #editBar label { font-size:13px; }
+  #editBar input[type="text"] { width:230px; padding:4px 6px; }
+  #editBtn, #editBar button { background:var(--main); color:#fff; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; }
+  #editBtn { position:fixed; right:14px; bottom:14px; z-index:40; background:#444; }
+  body.editing [data-text] { outline:2px dashed #c0392b; outline-offset:2px; }
+  #editStatus { font-size:13px; }
+</style>
+</head>
+<body>
+<div class="exp-band">これは実験ページです。実在のお店ではありません（編集モードの実験）</div>
+<header class="site">
+  <div class="name" data-text="shopName">実験ベーカリー まるみ</div>
+  <div class="dummy">ダミー店舗</div>
+</header>
+
+<div class="hero">
+  <img id="imgHero" alt="ダミー画像（ヒーロー）">
+  <h1 data-text="heroTitle">実験ページです</h1>
+  <p data-text="heroSub"></p>
+</div>
+
+<section>
+  <h2 data-text="noticeTitle"></h2>
+  <p data-text="noticeText"></p>
+</section>
+
+<section>
+  <h2>メニュー（ダミー）</h2>
+  <div class="menu-item"><span data-text="menu1Name"></span><span data-text="menu1Price"></span></div>
+  <div class="menu-item"><span data-text="menu2Name"></span><span data-text="menu2Price"></span></div>
+  <div class="menu-item"><span data-text="menu3Name"></span><span data-text="menu3Price"></span></div>
+</section>
+
+<section class="about">
+  <h2 data-text="aboutTitle"></h2>
+  <img id="imgAbout" alt="ダミー画像（お店の様子）">
+  <p data-text="aboutText"></p>
+</section>
+
+<footer><span data-text="footerText"></span></footer>
+
+<button id="editBtn" type="button">編集モード</button>
+
+<div id="editBar">
+  <div class="row">
+    <label>メイン色 <input type="color" id="colorMain"></label>
+    <label>アクセント色 <input type="color" id="colorAccent"></label>
+    <span id="editStatus">文字はクリックして直接書き換えられます</span>
+  </div>
+  <div class="row">
+    <label>ヒーロー画像 <select id="selHero"><option value="preset1">ダミー1</option><option value="preset2">ダミー2</option><option value="preset3">ダミー3</option><option value="url">URL指定</option></select></label>
+    <input type="text" id="urlHero" placeholder="画像URL（URL指定の時）">
+    <label>下の画像 <select id="selAbout"><option value="preset1">ダミー1</option><option value="preset2">ダミー2</option><option value="preset3">ダミー3</option><option value="url">URL指定</option></select></label>
+    <input type="text" id="urlAbout" placeholder="画像URL（URL指定の時）">
+  </div>
+  <div class="row">
+    <button type="button" id="saveBtn">保存する</button>
+    <button type="button" id="exitBtn">編集を終わる</button>
+  </div>
+</div>
+
+<script src="content.js"></script>
+<script>
+let content = null;
+let editing = false;
+
+function applyContent() {
+  document.documentElement.style.setProperty('--main', content.colors.main);
+  document.documentElement.style.setProperty('--accent', content.colors.accent);
+  document.querySelectorAll('[data-text]').forEach(el => {
+    el.textContent = content.texts[el.dataset.text] || '';
+  });
+  document.getElementById('imgHero').src = imageSrc(content.images.hero);
+  document.getElementById('imgAbout').src = imageSrc(content.images.about);
+}
+
+function setImageControls() {
+  const set = (selId, urlId, val) => {
+    const sel = document.getElementById(selId), url = document.getElementById(urlId);
+    if (PRESET_IMAGES[val]) { sel.value = val; url.value = ''; }
+    else { sel.value = 'url'; url.value = val || ''; }
+  };
+  set('selHero', 'urlHero', content.images.hero);
+  set('selAbout', 'urlAbout', content.images.about);
+  document.getElementById('colorMain').value = content.colors.main;
+  document.getElementById('colorAccent').value = content.colors.accent;
+}
+function readImage(selId, urlId) {
+  const sel = document.getElementById(selId);
+  return sel.value === 'url' ? document.getElementById(urlId).value.trim() : sel.value;
+}
+function refreshImages() {
+  document.getElementById('imgHero').src = imageSrc(readImage('selHero', 'urlHero'));
+  document.getElementById('imgAbout').src = imageSrc(readImage('selAbout', 'urlAbout'));
+}
+
+document.getElementById('editBtn').addEventListener('click', () => {
+  const pw = prompt('編集モードの合言葉を入れてください（実験用：jikken）');
+  if (pw !== EXPERIMENT_PASSCODE) { if (pw !== null) alert('合言葉が違います'); return; }
+  editing = true;
+  document.body.classList.add('editing');
+  document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'true');
+  setImageControls();
+  document.getElementById('editBar').classList.add('open');
+  document.getElementById('editBtn').style.display = 'none';
+});
+document.getElementById('exitBtn').addEventListener('click', () => {
+  editing = false;
+  document.body.classList.remove('editing');
+  document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'false');
+  document.getElementById('editBar').classList.remove('open');
+  document.getElementById('editBtn').style.display = '';
+  applyContent();
+});
+['selHero', 'selAbout', 'urlHero', 'urlAbout'].forEach(id =>
+  document.getElementById(id).addEventListener('change', refreshImages));
+['colorMain', 'colorAccent'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => {
+    document.documentElement.style.setProperty('--main', document.getElementById('colorMain').value);
+    document.documentElement.style.setProperty('--accent', document.getElementById('colorAccent').value);
+  }));
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  document.querySelectorAll('[data-text]').forEach(el => {
+    content.texts[el.dataset.text] = el.textContent.trim();
+  });
+  content.colors.main = document.getElementById('colorMain').value;
+  content.colors.accent = document.getElementById('colorAccent').value;
+  content.images.hero = readImage('selHero', 'urlHero');
+  content.images.about = readImage('selAbout', 'urlAbout');
+  const st = document.getElementById('editStatus');
+  st.textContent = '保存しています…';
+  try {
+    const where = await saveContent(content);
+    st.textContent = where === 'gas' ? '保存しました（シートに保存）' : '保存しました（このブラウザに保存：GAS未接続の実験状態）';
+  } catch (e) {
+    st.textContent = '保存に失敗しました：' + e.message;
+  }
+});
+
+(async () => { content = await loadContent(); applyContent(); })();
+</script>
+</body>
+</html>
