@@ -29,6 +29,15 @@
   #editBtn, #editBar button { background:var(--main); color:#fff; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; }
   #editBtn { position:fixed; right:14px; bottom:14px; z-index:40; background:#444; }
   body.editing [data-text] { outline:2px dashed #c0392b; outline-offset:2px; }
+  body.editing img.editable-img { outline:3px dashed #31594f; outline-offset:3px; cursor:pointer; }
+  #imgPicker { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:60; align-items:center; justify-content:center; }
+  #imgPicker.open { display:flex; }
+  #imgPicker .box { background:#fff; border-radius:14px; padding:16px; max-width:92vw; width:420px; }
+  #imgPicker .opts { display:flex; gap:8px; }
+  #imgPicker .opts img { width:32%; border-radius:8px; cursor:pointer; border:3px solid transparent; }
+  #imgPicker input[type="text"] { width:100%; padding:6px; margin-top:10px; }
+  #imgPicker .row { display:flex; gap:10px; margin-top:12px; }
+  #imgPicker button { background:var(--main); color:#fff; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; }
   #editStatus { font-size:13px; }
 </style>
 </head>
@@ -40,7 +49,7 @@
 </header>
 
 <div class="hero">
-  <img id="imgHero" alt="ダミー画像（ヒーロー）">
+  <img id="imgHero" class="editable-img" data-img="hero" alt="ダミー画像（ヒーロー）">
   <h1 data-text="heroTitle">実験ページです</h1>
   <p data-text="heroSub"></p>
 </div>
@@ -59,7 +68,7 @@
 
 <section class="about">
   <h2 data-text="aboutTitle"></h2>
-  <img id="imgAbout" alt="ダミー画像（お店の様子）">
+  <img id="imgAbout" class="editable-img" data-img="about" alt="ダミー画像（お店の様子）">
   <p data-text="aboutText"></p>
 </section>
 
@@ -89,6 +98,22 @@
   <div class="row">
     <button type="button" id="saveBtn">保存する</button>
     <button type="button" id="exitBtn">編集を終わる</button>
+  </div>
+</div>
+
+<div id="imgPicker">
+  <div class="box">
+    <div style="font-weight:700; margin-bottom:8px;">画像を選んでください（実験用ダミー）</div>
+    <div class="opts">
+      <img data-preset="preset1" alt="ダミー1">
+      <img data-preset="preset2" alt="ダミー2">
+      <img data-preset="preset3" alt="ダミー3">
+    </div>
+    <input type="text" id="pickerUrl" placeholder="または画像URLを貼る">
+    <div class="row">
+      <button type="button" id="pickerApply">このURLを使う</button>
+      <button type="button" id="pickerCancel">やめる</button>
+    </div>
   </div>
 </div>
 
@@ -148,6 +173,38 @@ document.getElementById('exitBtn').addEventListener('click', () => {
   document.getElementById('editBar').classList.remove('open');
   document.getElementById('editBtn').style.display = '';
   applyContent();
+});
+let pickerTarget = null;
+document.querySelectorAll('#imgPicker .opts img').forEach(im => {
+  im.src = PRESET_IMAGES[im.dataset.preset]();
+});
+document.querySelectorAll('img.editable-img').forEach(im => {
+  im.addEventListener('click', () => {
+    if (!editing) return;
+    pickerTarget = im.dataset.img;
+    document.getElementById('pickerUrl').value = '';
+    document.getElementById('imgPicker').classList.add('open');
+  });
+});
+document.querySelectorAll('#imgPicker .opts img').forEach(im => {
+  im.addEventListener('click', () => {
+    if (!pickerTarget) return;
+    content.images[pickerTarget] = im.dataset.preset;
+    document.getElementById(pickerTarget === 'hero' ? 'imgHero' : 'imgAbout').src = imageSrc(im.dataset.preset);
+    setImageControls();
+    document.getElementById('imgPicker').classList.remove('open');
+  });
+});
+document.getElementById('pickerApply').addEventListener('click', () => {
+  const url = document.getElementById('pickerUrl').value.trim();
+  if (!pickerTarget || !url) return;
+  content.images[pickerTarget] = url;
+  document.getElementById(pickerTarget === 'hero' ? 'imgHero' : 'imgAbout').src = url;
+  setImageControls();
+  document.getElementById('imgPicker').classList.remove('open');
+});
+document.getElementById('pickerCancel').addEventListener('click', () => {
+  document.getElementById('imgPicker').classList.remove('open');
 });
 ['selHero', 'selAbout', 'urlHero', 'urlAbout'].forEach(id =>
   document.getElementById(id).addEventListener('change', refreshImages));
