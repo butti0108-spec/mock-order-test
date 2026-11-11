@@ -85,6 +85,19 @@ function fileToDataUri(file) {
   });
 }
 
+/* 画像の保存先を決める。GAS接続時はドライブへ上げてURLを受け取り、
+   未接続（実験のローカル保存）ではデータのまま返す。 */
+async function storeImage(dataUri) {
+  if (!GAS_URL) return dataUri;
+  const r = await fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'uploadImage', passcode: EXPERIMENT_PASSCODE, data: dataUri })
+  });
+  const j = await r.json();
+  if (j && j.ok && j.url) return j.url;
+  throw new Error('upload failed');
+}
+
 async function loadContent() {
   if (GAS_URL) {
     try {

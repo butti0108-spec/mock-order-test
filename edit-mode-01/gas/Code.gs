@@ -12,7 +12,8 @@
 const CONFIG = {
   SPREADSHEET_ID: '', // 実験用シートのID（紐づけプロジェクトなら空でよい）
   PASSCODE: 'jikken',
-  SHEET_NAME: 'コンテンツ'
+  SHEET_NAME: 'コンテンツ',
+  IMAGE_FOLDER_NAME: '工房サイト画像（実験）' // 画像の置き場（ドライブ内に自動作成）
 };
 
 const DEFAULT_CONTENT_GAS = {
@@ -106,6 +107,24 @@ function doGet(e) {
   return jsonOut_({ ok: true, content: readContent_() });
 }
 
+/* 画像アップロード：実物はドライブに置き、表示用の住所（URL）だけを返す。
+   シートにはこのURL（数十文字）だけが入るので、セルの文字数上限に触れない。 */
+function imageFolder_() {
+  const it = DriveApp.getFoldersByName(CONFIG.IMAGE_FOLDER_NAME);
+  if (it.hasNext()) return it.next();
+  return DriveApp.createFolder(CONFIG.IMAGE_FOLDER_NAME);
+}
+function uploadImage_(dataUri) {
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i.exec(dataUri || '');
+  if (!m) return { ok: false, error: 'not an image data uri' };
+  const blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1],
+    'kobo-img-' + Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd-HHmmss') + '.jpg');
+  const file = imageFolder_().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const id = file.getId();
+  return { ok: true, fileId: id, url: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600' };
+}
+
 function doPost(e) {
   let body = {};
   try { body = JSON.parse(e.postData.contents); } catch (err) {
@@ -114,6 +133,7 @@ function doPost(e) {
   if (body.passcode !== CONFIG.PASSCODE) {
     return jsonOut_({ ok: false, error: 'passcode mismatch' });
   }
+  if (body.action === 'uploadImage') return jsonOut_(uploadImage_(body.data));
   if (!body.content) return jsonOut_({ ok: false, error: 'no content' });
   writeContent_(body.content);
   return jsonOut_({ ok: true });

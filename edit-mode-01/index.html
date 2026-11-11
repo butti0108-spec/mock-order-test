@@ -216,7 +216,8 @@ document.getElementById('pickerFile').addEventListener('click', () => {
 document.getElementById('pickerFileInput').addEventListener('change', async (ev) => {
   const f = ev.target.files[0];
   if (!f || !pickerTarget) return;
-  const uri = await fileToDataUri(f);
+  let uri = await fileToDataUri(f);
+  try { uri = await storeImage(uri); } catch (e) { /* 接続前は端末内保存のまま */ }
   content.images[pickerTarget] = uri;
   document.getElementById(pickerTarget === 'hero' ? 'imgHero' : 'imgAbout').src = uri;
   setImageControls();
