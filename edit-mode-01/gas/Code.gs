@@ -61,10 +61,11 @@ function flatten_(content) {
   Object.keys(content.texts || {}).forEach(k => out['texts.' + k] = content.texts[k]);
   Object.keys(content.colors || {}).forEach(k => out['colors.' + k] = content.colors[k]);
   Object.keys(content.images || {}).forEach(k => out['images.' + k] = content.images[k]);
+  Object.keys(content.align || {}).forEach(k => out['align.' + k] = content.align[k]);
   return out;
 }
 function unflatten_(flat) {
-  const content = { texts: {}, colors: {}, images: {} };
+  const content = { texts: {}, colors: {}, images: {}, align: {} };
   Object.keys(flat).forEach(k => {
     const dot = k.indexOf('.');
     if (dot < 0) return;

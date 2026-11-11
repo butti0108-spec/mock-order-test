@@ -75,6 +75,11 @@ function buildTextFields() {
     ta.id = 'tf-' + key;
     ta.value = content.texts[key] || '';
     lab.appendChild(ta);
+    const sel = document.createElement('select');
+    sel.id = 'al-' + key;
+    sel.innerHTML = '<option value="">寄せ：そのまま</option><option value="left">左寄せ</option><option value="center">中央</option><option value="right">右寄せ</option>';
+    sel.value = (content.align && content.align[key]) || '';
+    lab.appendChild(sel);
     wrap.appendChild(lab);
   });
 }
@@ -95,8 +100,11 @@ function readImage(selId, urlId) {
   return sel.value === 'url' ? document.getElementById(urlId).value.trim() : sel.value;
 }
 function collectForm() {
+  if (!content.align) content.align = {};
   Object.keys(DEFAULT_CONTENT.texts).forEach(key => {
     content.texts[key] = document.getElementById('tf-' + key).value.trim();
+    const av = document.getElementById('al-' + key).value;
+    if (av) content.align[key] = av; else delete content.align[key];
   });
   content.colors.main = document.getElementById('colorMain').value;
   content.colors.accent = document.getElementById('colorAccent').value;

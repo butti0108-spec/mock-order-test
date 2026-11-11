@@ -21,7 +21,8 @@ const DEFAULT_CONTENT = {
     footerText: '実験ベーカリー まるみ（架空のお店）'
   },
   colors: { main: '#a44a2a', accent: '#31594f' },
-  images: { hero: 'preset1', about: 'preset2' }
+  images: { hero: 'preset1', about: 'preset2' },
+  align: {}
 };
 
 const TEXT_LABELS = {
@@ -60,6 +61,7 @@ function mergeDefaults(c) {
     for (const k of Object.keys(out.texts)) if (c.texts && c.texts[k] != null) out.texts[k] = c.texts[k];
     for (const k of Object.keys(out.colors)) if (c.colors && c.colors[k] != null) out.colors[k] = c.colors[k];
     for (const k of Object.keys(out.images)) if (c.images && c.images[k] != null) out.images[k] = c.images[k];
+    if (c.align) for (const k of Object.keys(c.align)) if (['left','center','right'].includes(c.align[k])) out.align[k] = c.align[k];
   }
   return out;
 }

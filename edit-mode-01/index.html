@@ -80,6 +80,13 @@
     <input type="text" id="urlAbout" placeholder="画像URL（URL指定の時）">
   </div>
   <div class="row">
+    <span>寄せ（文字を選んでから）</span>
+    <button type="button" class="alignBtn" data-align="left">左</button>
+    <button type="button" class="alignBtn" data-align="center">中央</button>
+    <button type="button" class="alignBtn" data-align="right">右</button>
+    <span id="selName">未選択</span>
+  </div>
+  <div class="row">
     <button type="button" id="saveBtn">保存する</button>
     <button type="button" id="exitBtn">編集を終わる</button>
   </div>
@@ -89,12 +96,15 @@
 <script>
 let content = null;
 let editing = false;
+let selectedKey = null;
+function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function applyContent() {
   document.documentElement.style.setProperty('--main', content.colors.main);
   document.documentElement.style.setProperty('--accent', content.colors.accent);
   document.querySelectorAll('[data-text]').forEach(el => {
-    el.textContent = content.texts[el.dataset.text] || '';
+    el.innerHTML = escapeHtml(content.texts[el.dataset.text] || '').replace(/\n/g, '<br>');
+    el.style.textAlign = content.align[el.dataset.text] || '';
   });
   document.getElementById('imgHero').src = imageSrc(content.images.hero);
   document.getElementById('imgAbout').src = imageSrc(content.images.about);
@@ -125,6 +135,7 @@ document.getElementById('editBtn').addEventListener('click', () => {
   if (pw !== EXPERIMENT_PASSCODE) { if (pw !== null) alert('合言葉が違います'); return; }
   editing = true;
   document.body.classList.add('editing');
+  document.querySelectorAll('[data-text]').forEach(el => { el.innerText = content.texts[el.dataset.text] || ''; });
   document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'true');
   setImageControls();
   document.getElementById('editBar').classList.add('open');
@@ -146,9 +157,24 @@ document.getElementById('exitBtn').addEventListener('click', () => {
     document.documentElement.style.setProperty('--accent', document.getElementById('colorAccent').value);
   }));
 
+document.querySelectorAll('[data-text]').forEach(el => {
+  el.addEventListener('click', () => {
+    if (!editing) return;
+    selectedKey = el.dataset.text;
+    document.getElementById('selName').textContent = '選択中：' + (TEXT_LABELS[selectedKey] || selectedKey);
+  });
+});
+document.querySelectorAll('.alignBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!selectedKey) { document.getElementById('editStatus').textContent = '先に文字をクリックして選んでください'; return; }
+    content.align[selectedKey] = btn.dataset.align;
+    const el = document.querySelector('[data-text="' + selectedKey + '"]');
+    if (el) el.style.textAlign = btn.dataset.align;
+  });
+});
 document.getElementById('saveBtn').addEventListener('click', async () => {
   document.querySelectorAll('[data-text]').forEach(el => {
-    content.texts[el.dataset.text] = el.textContent.trim();
+    content.texts[el.dataset.text] = el.innerText.trim();
   });
   content.colors.main = document.getElementById('colorMain').value;
   content.colors.accent = document.getElementById('colorAccent').value;
