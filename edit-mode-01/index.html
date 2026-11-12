@@ -80,13 +80,7 @@
   <div class="row">
     <label>メイン色 <input type="color" id="colorMain"></label>
     <label>アクセント色 <input type="color" id="colorAccent"></label>
-    <span id="editStatus">文字はクリックして直接書き換えられます</span>
-  </div>
-  <div class="row">
-    <label>ヒーロー画像 <select id="selHero"><option value="preset1">ダミー1</option><option value="preset2">ダミー2</option><option value="preset3">ダミー3</option><option value="url">URL指定</option></select></label>
-    <input type="text" id="urlHero" placeholder="画像URL（URL指定の時）">
-    <label>下の画像 <select id="selAbout"><option value="preset1">ダミー1</option><option value="preset2">ダミー2</option><option value="preset3">ダミー3</option><option value="url">URL指定</option></select></label>
-    <input type="text" id="urlAbout" placeholder="画像URL（URL指定の時）">
+    <span id="editStatus">文字はクリックで書き換え、画像はタップで変更</span>
   </div>
   <div class="row">
     <span>寄せ（文字を選んでから）</span>
@@ -138,25 +132,8 @@ function applyContent() {
 }
 
 function setImageControls() {
-  const set = (selId, urlId, val) => {
-    const sel = document.getElementById(selId), url = document.getElementById(urlId);
-    if (PRESET_IMAGES[val]) { sel.value = val; url.value = ''; }
-    else if (val && val.startsWith('data:')) { sel.value = 'url'; url.value = ''; url.placeholder = 'ファイルから選択した画像（変更する時は選び直し）'; }
-    else { sel.value = 'url'; url.value = val || ''; }
-  };
-  set('selHero', 'urlHero', content.images.hero);
-  set('selAbout', 'urlAbout', content.images.about);
   document.getElementById('colorMain').value = content.colors.main;
   document.getElementById('colorAccent').value = content.colors.accent;
-}
-function readImage(selId, urlId) {
-  const sel = document.getElementById(selId);
-  if (sel.value === 'url') return document.getElementById(urlId).value.trim() || null;
-  return sel.value;
-}
-function refreshImages() {
-  document.getElementById('imgHero').src = imageSrc(readImage('selHero', 'urlHero'));
-  document.getElementById('imgAbout').src = imageSrc(readImage('selAbout', 'urlAbout'));
 }
 
 document.getElementById('editBtn').addEventListener('click', () => {
@@ -227,8 +204,6 @@ document.getElementById('pickerFileInput').addEventListener('change', async (ev)
   document.getElementById('imgPicker').classList.remove('open');
   ev.target.value = '';
 });
-['selHero', 'selAbout', 'urlHero', 'urlAbout'].forEach(id =>
-  document.getElementById(id).addEventListener('change', refreshImages));
 ['colorMain', 'colorAccent'].forEach(id =>
   document.getElementById(id).addEventListener('input', () => {
     document.documentElement.style.setProperty('--main', document.getElementById('colorMain').value);
@@ -256,8 +231,6 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   });
   content.colors.main = document.getElementById('colorMain').value;
   content.colors.accent = document.getElementById('colorAccent').value;
-  const nh = readImage('selHero', 'urlHero'); if (nh) content.images.hero = nh;
-  const na = readImage('selAbout', 'urlAbout'); if (na) content.images.about = na;
   const st = document.getElementById('editStatus');
   st.textContent = '保存しています…';
   try {
