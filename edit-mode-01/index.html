@@ -30,6 +30,7 @@
   #editBtn { position:fixed; right:14px; bottom:14px; z-index:40; background:#444; }
   body.editing [data-text] { outline:2px dashed #c0392b; outline-offset:2px; }
   body.editing img.editable-img { outline:3px dashed #31594f; outline-offset:3px; cursor:pointer; }
+  .mk { background:linear-gradient(transparent 55%, #ffd94d 55%); padding:0 2px; }
   #textPop { position:absolute; z-index:55; background:#222; color:#fff; border-radius:10px; padding:8px 10px; display:none; box-shadow:0 4px 14px rgba(0,0,0,.4); font-size:13px; }
   #textPop.open { display:flex; gap:8px; align-items:center; }
   #textPop button { background:var(--main); color:#fff; border:0; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:13px; }
@@ -96,6 +97,8 @@
   <button type="button" class="popAlign" data-align="left">左</button>
   <button type="button" class="popAlign" data-align="center">中央</button>
   <button type="button" class="popAlign" data-align="right">右</button>
+  <button type="button" id="popMark">マーカー</button>
+  <button type="button" id="popUnmark">強調を外す</button>
   <button type="button" id="popClose">閉じる</button>
 </div>
 
@@ -124,11 +127,46 @@ let editing = false;
 let selectedKey = null;
 function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+/* 保存用：許可するのは <br> と <span class="mk">（マーカー）だけ。それ以外は剥がす */
+function sanitizeHtml(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html || '';
+  const clean = (node) => {
+    [...node.childNodes].forEach(ch => {
+      if (ch.nodeType === 3) return;
+      if (ch.nodeType !== 1) { ch.remove(); return; }
+      clean(ch);
+      const tag = ch.tagName;
+      if (tag === 'BR') { ch.removeAttribute('class'); return; }
+      if (tag === 'SPAN' && ch.classList.contains('mk')) {
+        ch.className = 'mk';
+        [...ch.attributes].forEach(at => { if (at.name !== 'class') ch.removeAttribute(at.name); });
+        return;
+      }
+      if (tag === 'DIV' || tag === 'P') {
+        const br = document.createElement('br');
+        ch.after(br);
+        ch.replaceWith(...ch.childNodes);
+        return;
+      }
+      ch.replaceWith(...ch.childNodes);
+    });
+  };
+  clean(tpl.content);
+  return tpl.innerHTML.replace(/^(<br\s*\/?>)+/, '').replace(/(<br\s*\/?>)+$/, '').trim();
+}
+/* 描画用：タグ入り（マーカー等）はサニタイズして出し、素の文章はエスケープ＋改行変換 */
+function renderRich(text) {
+  const t = text || '';
+  if (/<[a-z][^>]*>/i.test(t)) return sanitizeHtml(t);
+  return escapeHtml(t).replace(/\n/g, '<br>');
+}
+
 function applyContent() {
   document.documentElement.style.setProperty('--main', content.colors.main);
   document.documentElement.style.setProperty('--accent', content.colors.accent);
   document.querySelectorAll('[data-text]').forEach(el => {
-    el.innerHTML = escapeHtml(content.texts[el.dataset.text] || '').replace(/\n/g, '<br>');
+    el.innerHTML = renderRich(content.texts[el.dataset.text]);
     el.style.textAlign = content.align[el.dataset.text] || '';
   });
   document.getElementById('imgHero').src = imageSrc(content.images.hero);
@@ -145,7 +183,7 @@ document.getElementById('editBtn').addEventListener('click', () => {
   if (pw !== EXPERIMENT_PASSCODE) { if (pw !== null) alert('合言葉が違います'); return; }
   editing = true;
   document.body.classList.add('editing');
-  document.querySelectorAll('[data-text]').forEach(el => { el.innerText = content.texts[el.dataset.text] || ''; });
+  document.querySelectorAll('[data-text]').forEach(el => { el.innerHTML = renderRich(content.texts[el.dataset.text]); });
   document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'true');
   setImageControls();
   const bar = document.getElementById('editBar');
@@ -241,9 +279,30 @@ document.querySelectorAll('.popAlign').forEach(btn => {
   });
 });
 document.getElementById('popClose').addEventListener('click', hideTextPop);
+document.getElementById('popMark').addEventListener('click', () => {
+  if (!selectedKey) return;
+  const el = document.querySelector('[data-text="' + selectedKey + '"]');
+  const sel = window.getSelection();
+  if (!el || !sel.rangeCount || sel.isCollapsed || !el.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+    document.getElementById('editStatus').textContent = '先に、目立たせたい文字をなぞって選んでください';
+    return;
+  }
+  const range = sel.getRangeAt(0);
+  const span = document.createElement('span');
+  span.className = 'mk';
+  try { range.surroundContents(span); }
+  catch (e) { span.appendChild(range.extractContents()); range.insertNode(span); }
+  sel.removeAllRanges();
+});
+document.getElementById('popUnmark').addEventListener('click', () => {
+  if (!selectedKey) return;
+  const el = document.querySelector('[data-text="' + selectedKey + '"]');
+  if (!el) return;
+  el.querySelectorAll('span.mk').forEach(sp => sp.replaceWith(...sp.childNodes));
+});
 document.getElementById('saveBtn').addEventListener('click', async () => {
   document.querySelectorAll('[data-text]').forEach(el => {
-    content.texts[el.dataset.text] = el.innerText.trim();
+    content.texts[el.dataset.text] = sanitizeHtml(el.innerHTML);
   });
   content.colors.main = document.getElementById('colorMain').value;
   content.colors.accent = document.getElementById('colorAccent').value;

@@ -67,6 +67,12 @@
 let content = null;
 const status = document.getElementById('status');
 
+const origRawTexts = {};
+function plainOf(raw) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = (raw || '').replace(/<br\s*\/?>/gi, '\n');
+  return tpl.content.textContent.trim();
+}
 function buildTextFields() {
   const wrap = document.getElementById('textFields');
   wrap.innerHTML = '';
@@ -75,7 +81,8 @@ function buildTextFields() {
     lab.textContent = TEXT_LABELS[key] || key;
     const ta = document.createElement('textarea');
     ta.id = 'tf-' + key;
-    ta.value = content.texts[key] || '';
+    origRawTexts[key] = content.texts[key] || '';
+    ta.value = plainOf(origRawTexts[key]);
     lab.appendChild(ta);
     const sel = document.createElement('select');
     sel.id = 'al-' + key;
@@ -116,7 +123,8 @@ function readImage(selId, urlId) {
 function collectForm() {
   if (!content.align) content.align = {};
   Object.keys(DEFAULT_CONTENT.texts).forEach(key => {
-    content.texts[key] = document.getElementById('tf-' + key).value.trim();
+    const v = document.getElementById('tf-' + key).value.trim();
+    content.texts[key] = (v === plainOf(origRawTexts[key] || '')) ? (origRawTexts[key] || '') : v;
     const av = document.getElementById('al-' + key).value;
     if (av) content.align[key] = av; else delete content.align[key];
   });
