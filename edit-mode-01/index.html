@@ -30,6 +30,9 @@
   #editBtn { position:fixed; right:14px; bottom:14px; z-index:40; background:#444; }
   body.editing [data-text] { outline:2px dashed #c0392b; outline-offset:2px; }
   body.editing img.editable-img { outline:3px dashed #31594f; outline-offset:3px; cursor:pointer; }
+  #textPop { position:absolute; z-index:55; background:#222; color:#fff; border-radius:10px; padding:8px 10px; display:none; box-shadow:0 4px 14px rgba(0,0,0,.4); font-size:13px; }
+  #textPop.open { display:flex; gap:8px; align-items:center; }
+  #textPop button { background:var(--main); color:#fff; border:0; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:13px; }
   #imgPicker { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:60; align-items:center; justify-content:center; }
   #imgPicker.open { display:flex; }
   #imgPicker .box { background:#fff; border-radius:14px; padding:16px; max-width:92vw; width:420px; }
@@ -83,16 +86,17 @@
     <span id="editStatus">文字はクリックで書き換え、画像はタップで変更</span>
   </div>
   <div class="row">
-    <span>寄せ（文字を選んでから）</span>
-    <button type="button" class="alignBtn" data-align="left">左</button>
-    <button type="button" class="alignBtn" data-align="center">中央</button>
-    <button type="button" class="alignBtn" data-align="right">右</button>
-    <span id="selName">未選択</span>
-  </div>
-  <div class="row">
     <button type="button" id="saveBtn">保存する</button>
     <button type="button" id="exitBtn">編集を終わる</button>
   </div>
+</div>
+
+<div id="textPop">
+  <span id="popName"></span>
+  <button type="button" class="popAlign" data-align="left">左</button>
+  <button type="button" class="popAlign" data-align="center">中央</button>
+  <button type="button" class="popAlign" data-align="right">右</button>
+  <button type="button" id="popClose">閉じる</button>
 </div>
 
 <div id="imgPicker">
@@ -153,6 +157,7 @@ document.getElementById('exitBtn').addEventListener('click', () => {
   editing = false;
   document.body.classList.remove('editing');
   document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'false');
+  hideTextPop();
   document.getElementById('editBar').classList.remove('open');
   document.body.style.paddingTop = '';
   document.getElementById('editBtn').style.display = '';
@@ -210,21 +215,32 @@ document.getElementById('pickerFileInput').addEventListener('change', async (ev)
     document.documentElement.style.setProperty('--accent', document.getElementById('colorAccent').value);
   }));
 
+function showTextPop(el) {
+  const pop = document.getElementById('textPop');
+  document.getElementById('popName').textContent = TEXT_LABELS[el.dataset.text] || el.dataset.text;
+  const r = el.getBoundingClientRect();
+  pop.classList.add('open');
+  const left = Math.max(8, Math.min(r.left + window.scrollX, window.scrollX + window.innerWidth - 300));
+  pop.style.left = left + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
+}
+function hideTextPop() { document.getElementById('textPop').classList.remove('open'); }
 document.querySelectorAll('[data-text]').forEach(el => {
   el.addEventListener('click', () => {
     if (!editing) return;
     selectedKey = el.dataset.text;
-    document.getElementById('selName').textContent = '選択中：' + (TEXT_LABELS[selectedKey] || selectedKey);
+    showTextPop(el);
   });
 });
-document.querySelectorAll('.alignBtn').forEach(btn => {
+document.querySelectorAll('.popAlign').forEach(btn => {
   btn.addEventListener('click', () => {
-    if (!selectedKey) { document.getElementById('editStatus').textContent = '先に文字をクリックして選んでください'; return; }
+    if (!selectedKey) return;
     content.align[selectedKey] = btn.dataset.align;
     const el = document.querySelector('[data-text="' + selectedKey + '"]');
     if (el) el.style.textAlign = btn.dataset.align;
   });
 });
+document.getElementById('popClose').addEventListener('click', hideTextPop);
 document.getElementById('saveBtn').addEventListener('click', async () => {
   document.querySelectorAll('[data-text]').forEach(el => {
     content.texts[el.dataset.text] = el.innerText.trim();
