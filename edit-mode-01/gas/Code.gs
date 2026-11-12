@@ -31,7 +31,8 @@ const DEFAULT_CONTENT_GAS = {
     footerText: '実験ベーカリー まるみ（架空のお店）'
   },
   colors: { main: '#a44a2a', accent: '#31594f' },
-  images: { hero: 'preset1', about: 'preset2' }
+  images: { hero: 'preset1', about: 'preset2' },
+  sections: []
 };
 
 function spreadsheet_() {
@@ -63,11 +64,13 @@ function flatten_(content) {
   Object.keys(content.colors || {}).forEach(k => out['colors.' + k] = content.colors[k]);
   Object.keys(content.images || {}).forEach(k => out['images.' + k] = content.images[k]);
   Object.keys(content.align || {}).forEach(k => out['align.' + k] = content.align[k]);
+  if (Array.isArray(content.sections)) out['sections'] = content.sections;
   return out;
 }
 function unflatten_(flat) {
-  const content = { texts: {}, colors: {}, images: {}, align: {} };
+  const content = { texts: {}, colors: {}, images: {}, align: {}, sections: [] };
   Object.keys(flat).forEach(k => {
+    if (k === 'sections') { if (Array.isArray(flat[k])) content.sections = flat[k]; return; }
     const dot = k.indexOf('.');
     if (dot < 0) return;
     const group = k.slice(0, dot), key = k.slice(dot + 1);

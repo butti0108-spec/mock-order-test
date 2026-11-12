@@ -22,7 +22,17 @@ const DEFAULT_CONTENT = {
   },
   colors: { main: '#a44a2a', accent: '#31594f' },
   images: { hero: 'preset1', about: 'preset2' },
-  align: {}
+  align: {},
+  sections: []
+};
+
+/* 追加セクションの「型」。形は用意した型だけ、文章と写真は自由に直せる。
+   新しい型を増やす時はここに1つ足す。 */
+const SECTION_TYPES = {
+  notice: { label: 'お知らせ型（見出し＋文章）', title: '新しいお知らせ', body: 'ここにお知らせの文章が入ります。' },
+  photo:  { label: '写真と文章型', title: '新しい見出し', body: 'ここに文章が入ります。', img: 'preset3' },
+  text:   { label: '文章だけ型', body: 'ここに文章が入ります。' },
+  contact:{ label: '住所・連絡先型', title: 'アクセス・連絡先', body: '住所：横浜市〇〇区〇〇 1-2-3\n電話：000-0000-0000' }
 };
 
 const TEXT_LABELS = {
@@ -58,10 +68,15 @@ function imageSrc(value) {
 function mergeDefaults(c) {
   const out = JSON.parse(JSON.stringify(DEFAULT_CONTENT));
   if (c && typeof c === 'object') {
-    for (const k of Object.keys(out.texts)) if (c.texts && c.texts[k] != null) out.texts[k] = c.texts[k];
-    for (const k of Object.keys(out.colors)) if (c.colors && c.colors[k] != null) out.colors[k] = c.colors[k];
-    for (const k of Object.keys(out.images)) if (c.images && c.images[k] != null) out.images[k] = c.images[k];
+    /* 既定のキーも、追加セクション等の動的キーも、保存側にあるものは全部引き継ぐ */
+    if (c.texts) for (const k of Object.keys(c.texts)) if (c.texts[k] != null) out.texts[k] = c.texts[k];
+    if (c.colors) for (const k of Object.keys(c.colors)) if (c.colors[k] != null) out.colors[k] = c.colors[k];
+    if (c.images) for (const k of Object.keys(c.images)) if (c.images[k] != null) out.images[k] = c.images[k];
     if (c.align) for (const k of Object.keys(c.align)) if (['left','center','right'].includes(c.align[k])) out.align[k] = c.align[k];
+    if (Array.isArray(c.sections)) {
+      out.sections = c.sections.filter(x => x && typeof x.id === 'string' && SECTION_TYPES[x.type])
+        .map(x => ({ id: x.id, type: x.type }));
+    }
   }
   return out;
 }
