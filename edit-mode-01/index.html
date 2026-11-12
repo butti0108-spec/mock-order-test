@@ -123,6 +123,7 @@
     </div>
     <input type="text" id="pickerUrl" placeholder="または画像URLを貼る">
     <div class="row">
+      <button type="button" id="pickerRemove" style="display:none;">この写真を消す</button>
       <button type="button" id="pickerApply">このURLを使う</button>
       <button type="button" id="pickerFile">ファイルから選ぶ</button>
       <button type="button" id="pickerCancel">やめる</button>
@@ -139,6 +140,7 @@
     <button type="button" class="pat" data-type="photo">写真と文章型</button>
     <button type="button" class="pat" data-type="text">文章だけ型</button>
     <button type="button" class="pat" data-type="contact">住所・連絡先型</button>
+    <button type="button" class="pat" data-type="photos">写真複数枚型（最大3枚）</button>
     <div class="row">
       <button type="button" id="secPickerCancel">やめる</button>
     </div>
@@ -236,6 +238,7 @@ function bindImg(im) {
     if (!editing) return;
     pickerTarget = im.dataset.img;
     document.getElementById('pickerUrl').value = '';
+    document.getElementById('pickerRemove').style.display = /_img\d$/.test(pickerTarget) ? '' : 'none';
     document.getElementById('imgPicker').classList.add('open');
   });
 }
@@ -256,6 +259,15 @@ document.getElementById('pickerApply').addEventListener('click', () => {
   const t2 = imgElFor(pickerTarget); if (t2) t2.src = url;
   setImageControls();
   document.getElementById('imgPicker').classList.remove('open');
+});
+document.getElementById('pickerRemove').addEventListener('click', () => {
+  if (!pickerTarget) return;
+  harvestTexts();
+  delete content.images[pickerTarget];
+  pickerTarget = null;
+  document.getElementById('imgPicker').classList.remove('open');
+  renderSections();
+  document.getElementById('editStatus').textContent = '写真を1枚消しました。「保存する」で確定します';
 });
 document.getElementById('pickerCancel').addEventListener('click', () => {
   document.getElementById('imgPicker').classList.remove('open');
@@ -369,8 +381,14 @@ function buildSectionEl(sec) {
   let inner = '<div class="secCtl"><span style="font-size:13px;">このセクション</span>' +
     '<button type="button" class="secUp">上へ</button>' +
     '<button type="button" class="secDown">下へ</button>' +
+    '<button type="button" class="secIns">下に足す</button>' +
     '<button type="button" class="secDel">削除</button></div>';
+  if (sec.type === 'photos') inner = inner.replace('</div>', '<button type="button" class="secAddImg">写真を足す</button></div>');
   if (sec.type === 'photo') inner += '<img class="editable-img dyn-img" data-img="' + secKey(sec.id, 'img') + '" alt="追加セクションの写真">';
+  if (sec.type === 'photos') for (let i = 1; i <= 3; i++) {
+    if (content.images[secKey(sec.id, 'img' + i)] != null)
+      inner += '<img class="editable-img dyn-img" data-img="' + secKey(sec.id, 'img' + i) + '" alt="追加セクションの写真' + i + '">';
+  }
   if (t.title != null) inner += '<h2 data-text="' + secKey(sec.id, 'title') + '"></h2>';
   inner += '<p data-text="' + secKey(sec.id, 'body') + '"></p>';
   wrap.innerHTML = inner;
@@ -401,11 +419,27 @@ document.getElementById('dynSections').addEventListener('click', (ev) => {
   const id = secEl.dataset.sec;
   const idx = content.sections.findIndex(x => x.id === id);
   if (idx < 0) return;
+  if (btn.classList.contains('secAddImg')) {
+    harvestTexts();
+    let slot = 0;
+    for (let i = 1; i <= 3; i++) if (content.images[secKey(id, 'img' + i)] == null) { slot = i; break; }
+    if (!slot) { document.getElementById('editStatus').textContent = '写真は1つのセクションに3枚までです'; return; }
+    content.images[secKey(id, 'img' + slot)] = ['preset1', 'preset2', 'preset3'][slot - 1];
+    renderSections();
+    document.getElementById('editStatus').textContent = '写真を足しました。「保存する」で確定します';
+    return;
+  }
+  if (btn.classList.contains('secIns')) {
+    insertAfterIdx = idx;
+    document.getElementById('secPicker').classList.add('open');
+    return;
+  }
   harvestTexts();
   if (btn.classList.contains('secDel')) {
     if (!confirm('このセクションを削除しますか')) return;
     ['title', 'body'].forEach(part => { delete content.texts[secKey(id, part)]; delete content.align[secKey(id, part)]; });
     delete content.images[secKey(id, 'img')];
+    for (let i = 1; i <= 3; i++) delete content.images[secKey(id, 'img' + i)];
     content.sections.splice(idx, 1);
   } else if (btn.classList.contains('secUp') && idx > 0) {
     const tmp = content.sections[idx - 1]; content.sections[idx - 1] = content.sections[idx]; content.sections[idx] = tmp;
@@ -415,7 +449,9 @@ document.getElementById('dynSections').addEventListener('click', (ev) => {
   renderSections();
   document.getElementById('editStatus').textContent = 'セクションを変更しました。「保存する」で確定します';
 });
+let insertAfterIdx = null;
 document.getElementById('addSecBtn').addEventListener('click', () => {
+  insertAfterIdx = null;
   document.getElementById('secPicker').classList.add('open');
 });
 document.getElementById('secPickerCancel').addEventListener('click', () => {
@@ -429,8 +465,11 @@ document.querySelectorAll('#secPicker .pat').forEach(btn => {
     const id = 's' + Date.now().toString(36);
     if (t.title != null) content.texts[secKey(id, 'title')] = t.title;
     content.texts[secKey(id, 'body')] = t.body;
-    if (t.img) content.images[secKey(id, 'img')] = t.img;
-    content.sections.push({ id, type });
+    if (t.img && type === 'photos') content.images[secKey(id, 'img1')] = t.img;
+    else if (t.img) content.images[secKey(id, 'img')] = t.img;
+    if (insertAfterIdx == null) content.sections.push({ id, type });
+    else content.sections.splice(insertAfterIdx + 1, 0, { id, type });
+    insertAfterIdx = null;
     renderSections();
     document.getElementById('secPicker').classList.remove('open');
     const el = document.querySelector('[data-sec="' + id + '"]');

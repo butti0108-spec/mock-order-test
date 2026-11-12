@@ -32,7 +32,8 @@ const SECTION_TYPES = {
   notice: { label: 'お知らせ型（見出し＋文章）', title: '新しいお知らせ', body: 'ここにお知らせの文章が入ります。' },
   photo:  { label: '写真と文章型', title: '新しい見出し', body: 'ここに文章が入ります。', img: 'preset3' },
   text:   { label: '文章だけ型', body: 'ここに文章が入ります。' },
-  contact:{ label: '住所・連絡先型', title: 'アクセス・連絡先', body: '住所：横浜市〇〇区〇〇 1-2-3\n電話：000-0000-0000' }
+  contact:{ label: '住所・連絡先型', title: 'アクセス・連絡先', body: '住所：横浜市〇〇区〇〇 1-2-3\n電話：000-0000-0000' },
+  photos: { label: '写真複数枚型（最大3枚）', title: '新しい見出し', body: 'ここに文章が入ります。', img: 'preset3' }
 };
 
 const TEXT_LABELS = {
