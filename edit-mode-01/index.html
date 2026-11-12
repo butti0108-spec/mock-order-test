@@ -31,9 +31,6 @@
   body.editing [data-text] { outline:2px dashed #c0392b; outline-offset:2px; }
   body.editing img.editable-img { outline:3px dashed #31594f; outline-offset:3px; cursor:pointer; }
   .mk { background:linear-gradient(transparent 55%, #ffd94d 55%); padding:0 2px; }
-  #textPop { position:absolute; z-index:55; background:#222; color:#fff; border-radius:10px; padding:8px 10px; display:none; box-shadow:0 4px 14px rgba(0,0,0,.4); font-size:13px; }
-  #textPop.open { display:flex; gap:8px; align-items:center; }
-  #textPop button { background:var(--main); color:#fff; border:0; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:13px; }
   #imgPicker { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:60; align-items:center; justify-content:center; }
   #imgPicker.open { display:flex; }
   #imgPicker .box { background:#fff; border-radius:14px; padding:16px; max-width:92vw; width:420px; }
@@ -87,19 +84,17 @@
     <span id="editStatus">文字はクリックで書き換え、画像はタップで変更</span>
   </div>
   <div class="row">
+    <span id="selName">文字をタップすると、寄せとマーカーがここでできます</span>
+    <button type="button" class="alignBtn" data-align="left">左</button>
+    <button type="button" class="alignBtn" data-align="center">中央</button>
+    <button type="button" class="alignBtn" data-align="right">右</button>
+    <button type="button" id="markBtn">マーカー</button>
+    <button type="button" id="unmarkBtn">強調を外す</button>
+  </div>
+  <div class="row">
     <button type="button" id="saveBtn">保存する</button>
     <button type="button" id="exitBtn">編集を終わる</button>
   </div>
-</div>
-
-<div id="textPop">
-  <span id="popName"></span>
-  <button type="button" class="popAlign" data-align="left">左</button>
-  <button type="button" class="popAlign" data-align="center">中央</button>
-  <button type="button" class="popAlign" data-align="right">右</button>
-  <button type="button" id="popMark">マーカー</button>
-  <button type="button" id="popUnmark">強調を外す</button>
-  <button type="button" id="popClose">閉じる</button>
 </div>
 
 <div id="imgPicker">
@@ -195,7 +190,7 @@ document.getElementById('exitBtn').addEventListener('click', () => {
   editing = false;
   document.body.classList.remove('editing');
   document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'false');
-  hideTextPop();
+  storedRange = null;
   document.getElementById('editBar').classList.remove('open');
   document.body.style.paddingTop = '';
   document.getElementById('editBtn').style.display = '';
@@ -253,48 +248,54 @@ document.getElementById('pickerFileInput').addEventListener('change', async (ev)
     document.documentElement.style.setProperty('--accent', document.getElementById('colorAccent').value);
   }));
 
-function showTextPop(el) {
-  const pop = document.getElementById('textPop');
-  document.getElementById('popName').textContent = TEXT_LABELS[el.dataset.text] || el.dataset.text;
-  const r = el.getBoundingClientRect();
-  pop.classList.add('open');
-  const left = Math.max(8, Math.min(r.left + window.scrollX, window.scrollX + window.innerWidth - 300));
-  pop.style.left = left + 'px';
-  pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
-}
-function hideTextPop() { document.getElementById('textPop').classList.remove('open'); }
+let storedRange = null;
+document.addEventListener('selectionchange', () => {
+  if (!editing) return;
+  const sel = window.getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) return;
+  const r = sel.getRangeAt(0);
+  const host = r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement;
+  const wrap = host && host.closest ? host.closest('[data-text]') : null;
+  if (wrap) storedRange = { key: wrap.dataset.text, range: r.cloneRange() };
+});
 document.querySelectorAll('[data-text]').forEach(el => {
   el.addEventListener('click', () => {
     if (!editing) return;
     selectedKey = el.dataset.text;
-    showTextPop(el);
+    document.getElementById('selName').textContent = '選択中：' + (TEXT_LABELS[selectedKey] || selectedKey);
   });
 });
-document.querySelectorAll('.popAlign').forEach(btn => {
+document.querySelectorAll('.alignBtn').forEach(btn => {
   btn.addEventListener('click', () => {
-    if (!selectedKey) return;
+    if (!selectedKey) { document.getElementById('editStatus').textContent = '先に文字をタップして選んでください'; return; }
     content.align[selectedKey] = btn.dataset.align;
     const el = document.querySelector('[data-text="' + selectedKey + '"]');
     if (el) el.style.textAlign = btn.dataset.align;
   });
 });
-document.getElementById('popClose').addEventListener('click', hideTextPop);
-document.getElementById('popMark').addEventListener('click', () => {
-  if (!selectedKey) return;
-  const el = document.querySelector('[data-text="' + selectedKey + '"]');
+document.getElementById('markBtn').addEventListener('click', () => {
+  let range = null, key = selectedKey;
   const sel = window.getSelection();
-  if (!el || !sel.rangeCount || sel.isCollapsed || !el.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+  if (sel.rangeCount && !sel.isCollapsed) {
+    const r = sel.getRangeAt(0);
+    const host = r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement;
+    const wrap = host && host.closest ? host.closest('[data-text]') : null;
+    if (wrap) { range = r; key = wrap.dataset.text; }
+  }
+  if (!range && storedRange) { range = storedRange.range; key = storedRange.key; }
+  if (!range) {
     document.getElementById('editStatus').textContent = '先に、目立たせたい文字をなぞって選んでください';
     return;
   }
-  const range = sel.getRangeAt(0);
+  selectedKey = key;
   const span = document.createElement('span');
   span.className = 'mk';
   try { range.surroundContents(span); }
   catch (e) { span.appendChild(range.extractContents()); range.insertNode(span); }
-  sel.removeAllRanges();
+  window.getSelection().removeAllRanges();
+  storedRange = null;
 });
-document.getElementById('popUnmark').addEventListener('click', () => {
+document.getElementById('unmarkBtn').addEventListener('click', () => {
   if (!selectedKey) return;
   const el = document.querySelector('[data-text="' + selectedKey + '"]');
   if (!el) return;
