@@ -21,7 +21,7 @@
   .menu-item { display:flex; justify-content:space-between; background:#fff; border:1px solid #e5ddd3; border-radius:10px; padding:10px 14px; margin-bottom:8px; }
   .about img { width:100%; border-radius:16px; display:block; margin-bottom:14px; }
   footer { background:var(--accent); color:#fff; text-align:center; padding:16px; margin-top:24px; }
-  #editBar { position:fixed; left:0; right:0; bottom:0; background:#222; color:#fff; padding:10px 12px; display:none; z-index:50; }
+  #editBar { position:fixed; left:0; right:0; top:0; background:#222; color:#fff; padding:10px 12px; display:none; z-index:50; box-shadow:0 2px 8px rgba(0,0,0,.35); }
   #editBar.open { display:block; }
   #editBar .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; max-width:900px; margin:0 auto 8px; }
   #editBar label { font-size:13px; }
@@ -167,7 +167,9 @@ document.getElementById('editBtn').addEventListener('click', () => {
   document.querySelectorAll('[data-text]').forEach(el => { el.innerText = content.texts[el.dataset.text] || ''; });
   document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'true');
   setImageControls();
-  document.getElementById('editBar').classList.add('open');
+  const bar = document.getElementById('editBar');
+  bar.classList.add('open');
+  document.body.style.paddingTop = bar.offsetHeight + 'px';
   document.getElementById('editBtn').style.display = 'none';
 });
 document.getElementById('exitBtn').addEventListener('click', () => {
@@ -175,6 +177,7 @@ document.getElementById('exitBtn').addEventListener('click', () => {
   document.body.classList.remove('editing');
   document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'false');
   document.getElementById('editBar').classList.remove('open');
+  document.body.style.paddingTop = '';
   document.getElementById('editBtn').style.display = '';
   applyContent();
 });
