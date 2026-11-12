@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>実験ページ｜編集モードの実験</title>
 <style>
   :root { --main:#a44a2a; --accent:#31594f; }
@@ -183,6 +183,7 @@ document.getElementById('editBtn').addEventListener('click', () => {
   setImageControls();
   const bar = document.getElementById('editBar');
   bar.classList.add('open');
+  pinEditBar();
   document.body.style.paddingTop = bar.offsetHeight + 'px';
   document.getElementById('editBtn').style.display = 'none';
 });
@@ -192,6 +193,7 @@ document.getElementById('exitBtn').addEventListener('click', () => {
   document.querySelectorAll('[data-text]').forEach(el => el.contentEditable = 'false');
   storedRange = null;
   document.getElementById('editBar').classList.remove('open');
+  document.getElementById('editBar').style.top = '';
   document.body.style.paddingTop = '';
   document.getElementById('editBtn').style.display = '';
   applyContent();
@@ -248,6 +250,19 @@ document.getElementById('pickerFileInput').addEventListener('change', async (ev)
     document.documentElement.style.setProperty('--accent', document.getElementById('colorAccent').value);
   }));
 
+/* キーボードが開くと見える範囲がずれて、固定バーが画面外へ押し出される端末がある。
+   バーを「実際に見えている画面の上端」へ追随させる。 */
+function pinEditBar() {
+  if (!editing) return;
+  const bar = document.getElementById('editBar');
+  const vv = window.visualViewport;
+  bar.style.top = (vv ? vv.offsetTop : 0) + 'px';
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', pinEditBar);
+  window.visualViewport.addEventListener('scroll', pinEditBar);
+}
+window.addEventListener('scroll', pinEditBar, { passive: true });
 let storedRange = null;
 document.addEventListener('selectionchange', () => {
   if (!editing) return;
